@@ -1,62 +1,46 @@
-# 将静态内容部署到 GitHub Pages 的工作流程
-name: deploy
+name: GitHub Actions Build and Deploy
 
 on:
-  # 仅在推送到默认分支时运行
-  push:
-    branches: ['main']
-
-# 设置 GITHUB_TOKEN 的权限，以允许部署到 GitHub Pages。
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# 允许一个并发的部署
-concurrency:
-  group: 'pages'
-  cancel-in-progress: true
+  # 手动运行工作流程（workflow_dispatch 事件触发器配置后可以在actions下手动运行工作流）
+  workflow_dispatch:
 
 jobs:
-  # 单次部署的工作描述
-  push-to-gh-pages:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+  build-and-deploy:
+    runs-on: ubuntu-latest  # 指定服务器的运行环境：最新版本ubuntu
     steps:
+      # 使用 actions/checkout@v4 拉取代码到 ubuntu 上
       - name: Checkout
         uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: Set up Node
+      # 设置 node 的版本并安装 npm
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: '18.x'
+          cache: 'npm'
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-          run_install: false
+      # 安装依赖
+      - name: Install dependencies
+        run: npm install
 
+      # 构建项目
       - name: Build
-        env:
-          NODE_OPTIONS: '--max_old_space_size=4096'
+        run: npm run build
+      - name: Clean old worktrees
         run: |
-          pnpm install
-          pnpm run build
+          # Clean old worktrees
+          git worktree list
+          git worktree remove <path_to_worktree> --force || true  # 可以忽略移除失败
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v3
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
+      # 部署到 GitHub Pages
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          # Upload dist repository
-          path: './dist'
-
-      - name: Deploy to vue3-vite-admin
-        id: deployment
-        uses: actions/deploy-pages@v4
+          # 指定仓库：你要发布的仓库路径名
+          repository-name: shaoshaui/vue3-vite-ts-vueRouter-pinia-antDesign
+          # 部署到 deploy-pages 分支，也就是部署后提交到那个分支
+          branch: main
+          # 填写打包好的目录名称路径，本项目配置在根目录
+          folder: dist
