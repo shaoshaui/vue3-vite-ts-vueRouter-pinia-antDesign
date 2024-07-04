@@ -1,46 +1,25 @@
 name: GitHub Actions Build and Deploy
 
-on:
-  # 手动运行工作流程（workflow_dispatch 事件触发器配置后可以在actions下手动运行工作流）
-  workflow_dispatch:
-
+on: [push]
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest  # 指定服务器的运行环境：最新版本ubuntu
+    runs-on: ubuntu-latest
     steps:
-      # 使用 actions/checkout@v4 拉取代码到 ubuntu 上
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
+    - uses: actions/checkout@v3
+    # 安装 pnpm 包管理工具 (如果用 npm 就不需要这个)
+    - uses: pnpm/action-setup@v2
+      with:
+        version: 7
 
-      # 设置 node 的版本并安装 npm
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18.x'
-          cache: 'npm'
+    # 安装依赖和打包
+    - name: Install and Build
+      run: pnpm install && pnpm run docs:build
 
-      # 安装依赖
-      - name: Install dependencies
-        run: npm install
-
-      # 构建项目
-      - name: Build
-        run: npm run build
-      - name: Clean old worktrees
-        run: |
-          # Clean old worktrees
-          git worktree list
-          git worktree remove <path_to_worktree> --force || true  # 可以忽略移除失败
-
-      # 部署到 GitHub Pages
-      - name: Deploy
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          # 指定仓库：你要发布的仓库路径名
-          repository-name: shaoshaui/vue3-vite-ts-vueRouter-pinia-antDesign
-          # 部署到 deploy-pages 分支，也就是部署后提交到那个分支
-          branch: main
-          # 填写打包好的目录名称路径，本项目配置在根目录
-          folder: dist
+    # 部署到 GitHub Pages
+    - name: Deploy vitepress docs
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        # 要部署的文件夹 
+        FOLDER: dist
+        # 部署的分支，默认 gh-pages
+        BRANCH: main
